@@ -3,7 +3,7 @@
 use strict;
 use Test::More;
 
-my $real_tests = 8;
+my $real_tests = 13;
 plan tests => 1 + $real_tests;
 
 use_ok 'Parse::CPAN::Packages::Fast';
@@ -15,14 +15,24 @@ SKIP: {
 
     my $pcp = Parse::CPAN::Packages::Fast->new;
     isa_ok($pcp, 'Parse::CPAN::Packages::Fast');
-    my $package = $pcp->package("Parse::CPAN::Packages");
+
+    cmp_ok($pcp->package_count, ">", 10000);
+    cmp_ok($pcp->distribution_count, ">", 10000);
+
+    my $package = $pcp->package("Kwalify");
     isa_ok($package, 'Parse::CPAN::Packages::Fast::Package');
-    is($package->package, 'Parse::CPAN::Packages');
+    is($package->package, 'Kwalify');
+    like($package->prefix, qr{^S/SR/SREZIC/Kwalify-});
+
     my $dist = $package->distribution;
     isa_ok($dist, 'Parse::CPAN::Packages::Fast::Distribution');
-    is($dist->dist, 'Parse-CPAN-Packages');
+    is($dist->dist, 'Kwalify');
+    like($dist->prefix, qr{^S/SR/SREZIC/Kwalify-});
+
     ok($pcp->latest_distribution('Kwalify'));
     ok($pcp->latest_distribution('Catalyst-Runtime'));
+
     my @dists = map { $_->dist } $pcp->latest_distributions;
     cmp_ok(scalar(@dists), ">", 10000);
+    is($pcp->latest_distribution_count, scalar(@dists));
 }
