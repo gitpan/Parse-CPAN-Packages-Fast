@@ -4,7 +4,7 @@
 #
 # Author: Slaven Rezic
 #
-# Copyright (C) 2009,2010 Slaven Rezic. All rights reserved.
+# Copyright (C) 2009,2010,2012 Slaven Rezic. All rights reserved.
 # This program is free software; you can redistribute it and/or
 # modify it under the same terms as Perl itself.
 #
@@ -22,7 +22,7 @@ use CPAN::DistnameInfo ();
 {
     package Parse::CPAN::Packages::Fast;
 
-    our $VERSION = '0.04';
+    our $VERSION = '0.05';
 
     use PerlIO::gzip;
     use version;
@@ -73,7 +73,7 @@ use CPAN::DistnameInfo ();
 
     sub package {
 	my($self, $package_name) = @_;
-	die "Package $package_name does not exist" if !exists $self->{pkg_ver}{$package_name}; # XXX die or not?
+	return undef if !exists $self->{pkg_ver}{$package_name};
 	Parse::CPAN::Packages::Fast::Package->new($package_name, $self);
     }
 
@@ -310,6 +310,9 @@ I did some benchmarking of the original module and found no obvious
 weak point to speed it up. Moose is used here, but does not seem to
 cause the problem. I suspect that the real problem is just heavy use
 of method calls.
+
+Also, this module does not have problems with circular references like
+the original. See L<Parse::CPAN::Packages/BUGS>.
 
 =head1 SEE ALSO
 
