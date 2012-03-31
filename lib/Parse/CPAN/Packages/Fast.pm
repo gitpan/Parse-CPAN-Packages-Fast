@@ -22,12 +22,15 @@ use CPAN::DistnameInfo ();
 {
     package Parse::CPAN::Packages::Fast;
 
-    our $VERSION = '0.05';
+    our $VERSION = '0.05_50';
+    $VERSION =~ s{_}{};
 
     use PerlIO::gzip;
-    use version;
+    use CPAN::Version ();
 
-    sub _default_packages_file {
+    # Note: this function is possibly interactive, i.e. if CPAN.pm was
+    # never configured, or if CPAN's Config.pm needs reconfiguration.
+    sub _default_packages_file_interactive {
 	my($class) = @_;
 	require CPAN;
 	no warnings 'once';
@@ -36,6 +39,36 @@ use CPAN::DistnameInfo ();
 	my $packages_file = $CPAN::Config->{keep_source_where} . "/modules/02packages.details.txt.gz";
 	$packages_file;
     }
+
+    # Note: this function is guaranteed to be non-interactive, but it
+    # is using just default locations to look at the CPAN config, or
+    # the 02packages files.
+    sub _default_packages_file_batch {
+	my($class) = @_;
+
+	my $home_cpandir = "$ENV{HOME}/.cpan";
+	if (!$INC{"CPAN/MyConfig.pm"}) {
+	    no warnings 'uninitialized'; # HOME may be uninitialized on some systems e.g. Windows
+	    my $home_myconfig = "$home_cpandir/CPAN/MyConfig.pm";
+	    if (-r $home_myconfig) {
+		local @INC = ($home_cpandir);
+		eval { require "CPAN::MyConfig" };
+	    }
+	}
+	if ($INC{"CPAN/MyConfig.pm"} && $CPAN::Config->{keep_source_where}) {
+	    return $CPAN::Config->{keep_source_where} . "/modules/02packages.details.txt.gz";
+	}
+
+	# Cannot find a usable CPAN::MyConfig, try a default location
+	my $packages_file = "$home_cpandir/sources/modules/02packages.details.txt.gz";
+	if (-r $packages_file && -s $packages_file) {
+	    return $packages_file;
+	}
+
+	undef;
+    }
+
+    *_default_packages_file = \&_default_packages_file_interactive;
 
     sub new {
 	my($class, $packages_file) = @_;
@@ -108,11 +141,12 @@ use CPAN::DistnameInfo ();
 	my($self, $distribution_name) = @_;
 	my @candidates;
 	for my $candidate (keys %{ $self->{dist_to_pkgs} }) {
-	    if ($candidate =~ m{/\Q$distribution_name}) {
+	    if ($candidate =~ m{^./../.*/\Q$distribution_name}) {
 		# Possibly pure CPAN::DistnameInfo is somewhat faster
 		# than Parse::CPAN::Packages::Fast::Distribution (no
 		# inside-out handling, no additional DESTROY)
 		my $d = CPAN::DistnameInfo->new($candidate);
+		no warnings 'uninitialized'; # Some distributions have no parseable dist name
 		if ($d->dist eq $distribution_name) {
 		    push @candidates, $d;
 		}
@@ -120,10 +154,10 @@ use CPAN::DistnameInfo ();
 	}
 	return if !@candidates; # XXX die or not?
 	my $best_candidate = pop @candidates;
-	my $best_candidate_version = version->new($best_candidate->version);
+	my $best_candidate_version = $best_candidate->version;
 	for my $candidate (@candidates) {
-	    my $this_version = version->new($candidate->version);
-	    if ($best_candidate_version < $this_version) {
+	    my $this_version = $candidate->version;
+	    if (CPAN::Version->vlt($best_candidate_version, $this_version)) {
 		$best_candidate = $candidate;
 		$best_candidate_version = $this_version;
 	    }
@@ -141,8 +175,7 @@ use CPAN::DistnameInfo ();
 	    if (!exists $latest_dist{$dist}) {
 		$latest_dist{$dist} = $d;
 	    } else {
-		no warnings;
-		if (eval { version->new($latest_dist{$dist}->version) < version->new($d->version) }) {
+		if (CPAN::Version->vlt($latest_dist{$dist}->version, $d->version)) {
 		    $latest_dist{$dist} = $d;
 		}
 	    }
@@ -262,9 +295,9 @@ Parse::CPAN::Packages::Fast - parse CPAN's package index
 
     use Parse::CPAN::Packages::Fast;
 
-    my $p = Parse::CPAN::Packages::Fast->new;
-    ## or alternatively, if CPAN.pm is not configured:
-    # my $p = Parse::CPAN::Packages::Fast->new("/path/to/02packages.details.txt.gz");
+    my $p = Parse::CPAN::Packages::Fast->new("/path/to/02packages.details.txt.gz");
+    ## Or alternatively, if CPAN.pm is configured
+    #my $p = Parse::CPAN::Packages::Fast->new;
 
     my $m = $p->package("Kwalify");
     # $m is a Parse::CPAN::Packages::Fast::Package object
@@ -297,6 +330,12 @@ to use the C<contains> method. Likewise, a
 Parse::CPAN::Packages::Fast::Package object does not include the
 containing distribution in the data structure, but it's necessary to
 use the C<distribution> method.
+
+=item * The C<new> constructor may be called without the path to the
+C<02packages.details.txt> file. In this case L<CPAN.pm|CPAN>'s logic
+is used to find an existing packages file. Note that this might be
+interactive (i.e. if CPAN.pm was never configured, or needs
+reconfiguration), so don't do this in batch systems.
 
 =back
 
