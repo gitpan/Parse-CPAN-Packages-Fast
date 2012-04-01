@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Parse-CPAN-Packages-Fast
-version:            0.05_50
+version:            0.05_51
 abstract:           ~
 author:  []
 license:            unknown
