@@ -38,11 +38,11 @@
          }
       }
    },
-   "release_status" : "testing",
+   "release_status" : "stable",
    "resources" : {
       "repository" : {
          "url" : "git://github.com/eserte/parse-cpan-packages-fast.git"
       }
    },
-   "version" : "0.05_53"
+   "version" : "0.06"
 }
