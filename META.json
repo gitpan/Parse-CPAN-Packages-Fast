@@ -34,7 +34,7 @@
          "requires" : {
             "CPAN::DistnameInfo" : "0",
             "CPAN::Version" : "0",
-            "PerlIO::gzip" : "0"
+            "IO::Uncompress::Gunzip" : "0"
          }
       }
    },
@@ -44,5 +44,5 @@
          "url" : "git://github.com/eserte/parse-cpan-packages-fast.git"
       }
    },
-   "version" : "0.06_51"
+   "version" : "0.06_52"
 }
